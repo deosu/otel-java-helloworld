@@ -23,22 +23,34 @@ public class App {
 
     public static void main(String[] args) throws InterruptedException {
 
+        /*this will make sure that a proper service.name attribute is set on all the
+         spans/metrics.*/
         System.setProperty(OTEL_RESOURCE_ATTRIBUTES_KEY, OTEL_RESOURCE_ATTRIBUTES_VALUE);
+
+        /*tracer must be acquired, which is responsible for creating spans and interacting with the Context*/
         tracer = getTracer();
 
+        /*an automated way to propagate the parent span on the current thread*/
         for (int index = 0; index < 3; index++) {
+            /*create a span by specifying the name of the span. The start and end time of the span is automatically set by the OpenTelemetry SDK*/
             Span parentSpan = tracer.spanBuilder("parentSpan").startSpan();
             logger.info("In parent method. TraceID : {}", parentSpan.getSpanContext().getTraceIdAsHexString());
+
+            /*put the span into the current Context*/
             try (Scope scope = parentSpan.makeCurrent()) {
+
+                /*annotate the span with attributes specific to the represented operation, to provide additional context*/
                 parentSpan.setAttribute("parentIndex", index);
                 childMethod(parentSpan);
             } catch (Throwable throwable) {
                 parentSpan.setStatus(StatusCode.ERROR, "Something wrong with the parent span");
             } finally {
+                /*closing the scope does not end the span, this has to be done manually*/
                 parentSpan.end();
             }
         }
 
+        /*sleep for a bit to let everything settle*/
         Thread.sleep(2000);
     }
 
@@ -46,9 +58,12 @@ public class App {
 
         tracer = getTracer();
 
+        /*setParent(...) is not required, `Span.current()` is automatically added as the parent*/
         Span childSpan = tracer.spanBuilder("childSpan").setParent(Context.current().with(parentSpan))
                 .startSpan();
         logger.info("In child method. TraceID : {}", childSpan.getSpanContext().getTraceIdAsHexString());
+
+        /*put the span into the current Context*/
         try (Scope scope = childSpan.makeCurrent()) {
             Thread.sleep(1000);
         } catch (Throwable throwable) {
@@ -60,8 +75,11 @@ public class App {
 
     private static Tracer getTracer() {
         if (tracer == null) {
+
+            /*it is important to initialize your SDK as early as possible in your application's lifecycle*/
             OpenTelemetry openTelemetry = OTelConfig.initOpenTelemetry();
 
+            /*get a tracer*/
             tracer = openTelemetry.getTracer(INSTRUMENTATION_LIBRARY_NAME, INSTRUMENTATION_VERSION);
         }
 

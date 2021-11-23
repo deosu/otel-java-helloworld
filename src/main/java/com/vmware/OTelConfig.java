@@ -18,6 +18,10 @@ public class OTelConfig {
     private static final String SERVICE_NAME = "otel-otlp-example";
     public static final String OTEL_COLLECTOR_ENDPOINT = "http://localhost:4317";
 
+
+    /*Adds a BatchSpanProcessor initialized with OtlpGrpcSpanExporter to the
+    TracerSdkProvider.*/
+
     static OpenTelemetry initOpenTelemetry() {
         OtlpGrpcSpanExporter spanExporter = getOtlpGrpcSpanExporter();
         BatchSpanProcessor spanProcessor = getBatchSpanProcessor(spanExporter);
